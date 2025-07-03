@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+
+    triggers {
+        pollSCM '* * * * *' // Polls GitHub every minute for changes
+    }
+
+    environment {
+        IMAGE = 'your-dockerhub-username/frontend:latest' // Replace this
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo "Building Docker Image..."
+                sh '''
+                docker build -t $IMAGE .
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "Running simple container test..."
+                sh '''
+                docker run --rm $IMAGE serve --version
+                '''
+            }
+        }
+
+        stage('Deliver') {
+            steps {
+                echo "Pushing to Docker Hub and applying to Kubernetes..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    sh '''
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    docker push $IMAGE
+
+                    # Deploy to Kubernetes (you need a working KUBECONFIG)
+                    kubectl apply -f k8s/frontend-deployment.yaml
+                    kubectl apply -f k8s/frontend-service.yaml
+                    '''
+                }
+            }
+        }
+    }
+}
