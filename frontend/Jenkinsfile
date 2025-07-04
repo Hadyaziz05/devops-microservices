@@ -49,7 +49,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             agent {
                 // Run this stage on Jenkins host where kubectl is configured
-                label 'master'
+                label 'controller'
             }
             steps {
                 echo "Updating Kubernetes deployment..."
