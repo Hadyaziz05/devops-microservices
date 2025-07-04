@@ -6,18 +6,19 @@ pipeline {
     }
 
     triggers {
-        pollSCM 'H/5 * * * *' // Polls GitHub every minute for changes
+        pollSCM 'H/5 * * * *'
     }
 
     environment {
-        IMAGE = 'hadyaziz05/frontend:v1'
+        TAG = "v${env.BUILD_NUMBER}" // Dynamic image tag
+        IMAGE = "hadyaziz05/frontend:${TAG}"
         DOCKER_HOST = 'tcp://docker-socat:2375'
     }
 
     stages {
         stage('Build') {
             steps {
-                echo "Building Docker Image..."
+                echo "Building Docker Image: ${IMAGE}"
                 sh '''
                 docker build -t $IMAGE frontend/
                 '''
@@ -35,18 +36,22 @@ pipeline {
 
         stage('Deliver') {
             steps {
-                echo "Pushing to Docker Hub and applying to Kubernetes..."
+                echo "Pushing to Docker Hub and updating Kubernetes..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
                     echo "$PASS" | docker login -u "$USER" --password-stdin
                     docker push $IMAGE
                     '''
-
-                    // In the Future: Apply Kubernetes manifests
-                    // # Deploy to Kubernetes (setup KUBECONFIG)
-                    // kubectl apply -f k8s/frontend-deployment.yaml
-                    // kubectl apply -f k8s/frontend-service.yaml
                 }
+
+                // Set image in Kubernetes deployment
+                sh '''
+                echo "Updating deployment with new image..."
+                kubectl set image deployment/frontend-deployment frontend=$IMAGE
+
+                echo "Waiting for rollout to complete..."
+                kubectl rollout status deployment/frontend-deployment
+                '''
             }
         }
     }
