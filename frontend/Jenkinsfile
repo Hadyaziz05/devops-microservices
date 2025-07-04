@@ -52,7 +52,7 @@ pipeline {
             }
             steps {
                 echo "Deploying to Kubernetes..."
-                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+                withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
                     sh '''
                     kubectl set image deployment/frontend-deployment frontend=$IMAGE
                     kubectl rollout status deployment/frontend-deployment
