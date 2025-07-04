@@ -1,12 +1,14 @@
 pipeline {
-    agent any
+    agent {
+        label 'frontend-agent'
+    }
 
     triggers {
         pollSCM '* * * * *' // Polls GitHub every minute for changes
     }
 
     environment {
-        IMAGE = 'your-dockerhub-username/frontend:latest' // Replace this
+        IMAGE = 'hadyaziz05/frontend:v1' 
     }
 
     stages {
@@ -35,11 +37,12 @@ pipeline {
                     sh '''
                     echo "$PASS" | docker login -u "$USER" --password-stdin
                     docker push $IMAGE
-
-                    # Deploy to Kubernetes (you need a working KUBECONFIG)
-                    kubectl apply -f k8s/frontend-deployment.yaml
-                    kubectl apply -f k8s/frontend-service.yaml
                     '''
+
+                    // In the Future: Apply Kubernetes manifests
+                    // # Deploy to Kubernetes (setup KUBECONFIG)
+                    // kubectl apply -f k8s/frontend-deployment.yaml
+                    // kubectl apply -f k8s/frontend-service.yaml
                 }
             }
         }

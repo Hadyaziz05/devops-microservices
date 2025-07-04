@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: your-dockerhub-username/frontend:latest  # 🔁 Replace with your real image
+          image: hadyaziz05/frontend:latest 
           ports:
             - containerPort: 3000
