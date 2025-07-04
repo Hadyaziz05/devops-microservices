@@ -34,22 +34,27 @@ pipeline {
             }
         }
 
-        stage('Deliver') {
+        stage('Push Image') {
             steps {
-                echo "Pushing to Docker Hub and updating Kubernetes..."
+                echo "Pushing image to Docker Hub..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
                     echo "$PASS" | docker login -u "$USER" --password-stdin
                     docker push $IMAGE
                     '''
                 }
+            }
+        }
 
-                // Set image in Kubernetes deployment
+        stage('Deploy to Kubernetes') {
+            agent {
+                // Run this stage on Jenkins host where kubectl is configured
+                label 'master'
+            }
+            steps {
+                echo "Updating Kubernetes deployment..."
                 sh '''
-                echo "Updating deployment with new image..."
                 kubectl set image deployment/frontend-deployment frontend=$IMAGE
-
-                echo "Waiting for rollout to complete..."
                 kubectl rollout status deployment/frontend-deployment
                 '''
             }
