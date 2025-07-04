@@ -11,7 +11,7 @@ pipeline {
 
     environment {
         IMAGE = 'hadyaziz05/frontend:v1'
-        DOCKER_HOST = 'tcp://172.19.0.3:2375'
+        DOCKER_HOST = 'tcp://docker-socat:2375'
     }
 
     stages {
