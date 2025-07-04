@@ -10,7 +10,10 @@ pipeline {
     }
 
     environment {
-        IMAGE = 'hadyaziz05/frontend:v1' 
+        environment {
+            IMAGE = 'hadyaziz05/frontend:v1'
+            DOCKER_HOST = 'tcp://172.19.0.3:2375'
+        }
     }
 
     stages {
