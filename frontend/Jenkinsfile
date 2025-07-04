@@ -13,7 +13,6 @@ pipeline {
         TAG = "v${env.BUILD_NUMBER}"
         IMAGE = "hadyaziz05/frontend:${TAG}"
         DOCKER_HOST = 'tcp://docker-socat:2375'
-        KUBECONFIG = "/var/jenkins_home/.kube/config" 
     }
 
     stages {
@@ -28,7 +27,7 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo "Running simple container test..."
+                echo "Running container test..."
                 sh '''
                 docker run --rm $IMAGE serve --version
                 '''
@@ -49,15 +48,16 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             agent {
-                // Run this stage on Jenkins host where kubectl is configured
                 label 'controller'
             }
             steps {
-                echo "Updating Kubernetes deployment..."
-                sh '''
-                kubectl set image deployment/frontend-deployment frontend=$IMAGE
-                kubectl rollout status deployment/frontend-deployment
-                '''
+                echo "Deploying to Kubernetes..."
+                withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG')]) {
+                    sh '''
+                    kubectl set image deployment/frontend-deployment frontend=$IMAGE
+                    kubectl rollout status deployment/frontend-deployment
+                    '''
+                }
             }
         }
     }
