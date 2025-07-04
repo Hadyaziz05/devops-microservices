@@ -10,9 +10,10 @@ pipeline {
     }
 
     environment {
-        TAG = "v${env.BUILD_NUMBER}" // Dynamic image tag
+        TAG = "v${env.BUILD_NUMBER}"
         IMAGE = "hadyaziz05/frontend:${TAG}"
         DOCKER_HOST = 'tcp://docker-socat:2375'
+        KUBECONFIG = "/var/jenkins_home/.kube/config" 
     }
 
     stages {
