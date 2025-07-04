@@ -1,5 +1,5 @@
 export async function loginUser(email, password) {
-  const response = await fetch('http://localhost:4040/signin', {
+  const response = await fetch('http://localhost:4040/users/signin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -13,7 +13,7 @@ export async function loginUser(email, password) {
 }
 
 export async function signupUser(name, email, password) {
-  const res = await fetch('http://localhost:4040/signup', {
+  const res = await fetch('http://localhost:4040/users/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email, password }),
