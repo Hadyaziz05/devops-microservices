@@ -1,0 +1,64 @@
+pipeline {
+    agent {
+        node {
+            label 'jenkins-docker-agent'
+        }
+    }
+
+    triggers {
+        pollSCM 'H/5 * * * *'
+    }
+
+    environment {
+        TAG = "v${env.BUILD_NUMBER}"
+        IMAGE = "hadyaziz05/backend:${TAG}"
+        DOCKER_HOST = 'tcp://docker-socat:2375'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo "Building Docker Image: ${IMAGE}"
+                sh '''
+                docker build -t $IMAGE backend/
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "Running container test..."
+                sh '''
+                docker run --rm $IMAGE serve --version
+                '''
+            }
+        }
+
+        stage('Push Image') {
+            steps {
+                echo "Pushing image to Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    sh '''
+                    echo "$PASS" | docker login -u "$USER" --password-stdin
+                    docker push $IMAGE
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            agent {
+                label 'controller'
+            }
+            steps {
+                echo "Deploying to Kubernetes..."
+                withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
+                    sh '''
+                    kubectl set image deployment/backend-deployment backend=$IMAGE
+                    kubectl rollout status deployment/backend-deployment
+                    '''
+                }
+            }
+        }
+    }
+}
