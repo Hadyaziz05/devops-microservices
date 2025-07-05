@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: hadyaziz05/frontend:v1 
+          image: hadyaziz05/frontend:v28 
           ports:
             - containerPort: 3000
