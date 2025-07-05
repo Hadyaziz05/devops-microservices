@@ -4,7 +4,9 @@ pipeline {
             label 'jenkins-docker-agent'
         }
     }
-
+    triggers {
+        pollSCM 'H/5 * * * *'
+    }
     environment {
         TAG = "v${env.BUILD_NUMBER}"
         IMAGE = "hadyaziz05/backend:${TAG}"
