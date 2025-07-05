@@ -50,13 +50,6 @@ pipeline {
                 echo "Starting Blue-Green Deployment..."
                 withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
                     script {
-                        // Ensure deployments and service exist
-                        sh '''
-                        kubectl apply -f k8s/backend-blue-deployment.yaml
-                        kubectl apply -f k8s/backend-green-deployment.yaml
-                        kubectl apply -f k8s/backend-service.yaml
-                        '''
-
                         // Get current version serving traffic
                         def currentVersion = sh(script: '''
                             kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'
