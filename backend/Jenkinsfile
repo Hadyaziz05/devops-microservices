@@ -52,9 +52,9 @@ pipeline {
                     script {
                         // Ensure deployments and service exist
                         sh '''
-                        kubectl apply -f backend/k8s/backend-blue-deployment.yaml
-                        kubectl apply -f backend/k8s/backend-green-deployment.yaml
-                        kubectl apply -f backend/k8s/backend-service.yaml
+                        kubectl apply -f k8s/backend-blue-deployment.yaml
+                        kubectl apply -f k8s/backend-green-deployment.yaml
+                        kubectl apply -f k8s/backend-service.yaml
                         '''
 
                         // Get current version serving traffic
