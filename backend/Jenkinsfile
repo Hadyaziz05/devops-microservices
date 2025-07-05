@@ -50,7 +50,14 @@ pipeline {
                 echo "Starting Blue-Green Deployment..."
                 withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
                     script {
-                        // Determine current live version
+                        // Ensure deployments and service exist
+                        sh '''
+                        kubectl apply -f backend/k8s/backend-blue-deployment.yaml
+                        kubectl apply -f backend/k8s/backend-green-deployment.yaml
+                        kubectl apply -f backend/k8s/backend-service.yaml
+                        '''
+
+                        // Get current version serving traffic
                         def currentVersion = sh(script: '''
                             kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'
                         ''', returnStdout: true).trim()
@@ -59,25 +66,26 @@ pipeline {
                         def newDeployment = "backend-${newVersion}"
 
                         echo "Current version: ${currentVersion}"
-                        echo "Deploying to: ${newDeployment}"
+                        echo "Deploying to: ${newDeployment} with image: ${IMAGE}"
 
-                        // Set image on new version
+                        // Update new deployment with latest image
                         sh """
                         kubectl set image deployment/${newDeployment} backend=${IMAGE}
                         kubectl rollout status deployment/${newDeployment}
                         """
 
-                        // Switch the service selector
+                        // Switch service to point to new version
                         sh """
                         kubectl patch service backend-service -p '{"spec": {"selector": {"app": "backend", "version": "${newVersion}"}}}'
                         """
 
-                        // Optional: scale down the old version
+                        // Optionally scale down the old deployment
                         def oldDeployment = "backend-${currentVersion}"
                         sh "kubectl scale deployment/${oldDeployment} --replicas=0"
                     }
                 }
             }
         }
+
     }
 }
