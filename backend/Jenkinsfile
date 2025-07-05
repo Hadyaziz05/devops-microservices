@@ -52,35 +52,42 @@ pipeline {
                 echo "Starting Blue-Green Deployment..."
                 withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
                     script {
-                        // Get current version serving traffic
                         def currentVersion = sh(script: '''
                             kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'
                         ''', returnStdout: true).trim()
 
                         def newVersion = currentVersion == "blue" ? "green" : "blue"
                         def newDeployment = "backend-${newVersion}"
+                        def oldDeployment = "backend-${currentVersion}"
 
                         echo "Current version: ${currentVersion}"
                         echo "Deploying to: ${newDeployment} with image: ${IMAGE}"
 
-                        // Update new deployment with latest image
+                        //Step 1: Scale up the new deployment
+                        sh """
+                        kubectl scale deployment/${newDeployment} --replicas=2
+                        """
+
+                        //Step 2: Update new deployment with the new image
                         sh """
                         kubectl set image deployment/${newDeployment} backend=${IMAGE}
                         kubectl rollout status deployment/${newDeployment}
                         """
 
-                        // Switch service to point to new version
+                        //Step 3: Switch service to point to new version
                         sh """
                         kubectl patch service backend-service -p '{"spec": {"selector": {"app": "backend", "version": "${newVersion}"}}}'
                         """
 
-                        // Optionally scale down the old deployment
-                        def oldDeployment = "backend-${currentVersion}"
-                        sh "kubectl scale deployment/${oldDeployment} --replicas=0"
+                        //Step 4: Scale down the old deployment
+                        sh """
+                        kubectl scale deployment/${oldDeployment} --replicas=0
+                        """
                     }
                 }
             }
         }
+
 
     }
 }
