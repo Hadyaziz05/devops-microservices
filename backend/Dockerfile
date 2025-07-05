@@ -1,16 +1,23 @@
-FROM node:20
+# Stage 1: Install dependencies & build the app
+FROM node:20-alpine AS builder
 
-# Set working directory
+# Create app directory
 WORKDIR /app
 
-# Copy only package files first for caching
-COPY package*.json ./
-
 # Install dependencies
+COPY package*.json ./
 RUN npm install
 
-# Copy the rest of your source code
+# Copy app source
 COPY . .
+
+# Stage 2: Use minimal runtime image
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy only what's needed from builder
+COPY --from=builder /app /app
 
 # Expose the app port
 EXPOSE 4000

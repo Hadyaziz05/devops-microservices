@@ -5,10 +5,6 @@ pipeline {
         }
     }
 
-    triggers {
-        pollSCM 'H/5 * * * *'
-    }
-
     environment {
         TAG = "v${env.BUILD_NUMBER}"
         IMAGE = "hadyaziz05/backend:${TAG}"
@@ -27,16 +23,16 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo "Running container test..."
+                echo "Testing container..."
                 sh '''
-                docker run --rm $IMAGE serve --version
+                docker run --rm $IMAGE node --version
                 '''
             }
         }
 
-        stage('Push Image') {
+        stage('Push') {
             steps {
-                echo "Pushing image to Docker Hub..."
+                echo "Pushing to Docker Hub..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh '''
                     echo "$PASS" | docker login -u "$USER" --password-stdin
@@ -46,17 +42,40 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy Blue-Green') {
             agent {
                 label 'controller'
             }
             steps {
-                echo "Deploying to Kubernetes..."
+                echo "Starting Blue-Green Deployment..."
                 withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
-                    sh '''
-                    kubectl set image deployment/backend-deployment backend=$IMAGE
-                    kubectl rollout status deployment/backend-deployment
-                    '''
+                    script {
+                        // Determine current live version
+                        def currentVersion = sh(script: '''
+                            kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'
+                        ''', returnStdout: true).trim()
+
+                        def newVersion = currentVersion == "blue" ? "green" : "blue"
+                        def newDeployment = "backend-${newVersion}"
+
+                        echo "Current version: ${currentVersion}"
+                        echo "Deploying to: ${newDeployment}"
+
+                        // Set image on new version
+                        sh """
+                        kubectl set image deployment/${newDeployment} backend=${IMAGE}
+                        kubectl rollout status deployment/${newDeployment}
+                        """
+
+                        // Switch the service selector
+                        sh """
+                        kubectl patch service backend-service -p '{"spec": {"selector": {"app": "backend", "version": "${newVersion}"}}}'
+                        """
+
+                        // Optional: scale down the old version
+                        def oldDeployment = "backend-${currentVersion}"
+                        sh "kubectl scale deployment/${oldDeployment} --replicas=0"
+                    }
                 }
             }
         }
