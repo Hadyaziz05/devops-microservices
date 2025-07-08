@@ -44,41 +44,7 @@ Before running this application, ensure you have the following installed:
 
 ## 🏃‍♂️ Quick Start
 
-### 1. Local Development (Without Docker)
-
-#### Backend Setup
-```bash
-cd backend
-npm install
-npm start
-```
-The backend will run on `http://localhost:5000`
-
-#### Frontend Setup
-```bash
-cd frontend
-npm install
-npm start
-```
-The frontend will run on `http://localhost:3000`
-
-### 2. Docker Development
-
-#### Manual Docker Build & Run
-
-**Backend:**
-```bash
-cd backend
-docker build -t backend-app .
-```
-
-**Frontend:**
-```bash
-cd frontend
-docker build -t frontend-app .
-```
-
-### 3. Jenkins CI/CD Setup
+### 1. Jenkins CI/CD Setup
 
 This section will help you set up Jenkins with Docker integration to automate the build, test, and deployment pipeline.
 
@@ -188,12 +154,12 @@ If you want Jenkins to deploy to Kubernetes:
 **Option 2: Manual Trigger:**
 - Go to your pipeline → Click **Build Now**
 
-### 4. Kubernetes Deployment
+### 2. Kubernetes Deployment
 
 #### Prerequisites
 - Ensure your Kubernetes cluster is running
 - Configure `kubectl` to connect to your cluster
-
+- Edit the Kubernetes YAML files to reference the Docker images for the frontend and backend images that were pushed to Docker Hub
 #### Deploy Backend (Blue-Green)
 ```bash
 # Deploy blue version
@@ -283,23 +249,15 @@ This project includes automated Jenkins pipelines for both frontend and backend:
 - **Manual**: Jenkins job execution
 - **Webhook**: Git repository changes (if configured)
 
-
-
 ## 📊 API Endpoints
 
 ### User Endpoints
 - `GET /users` - Get all users
 - `POST /users` - Create new user
-- `GET /users/:id` - Get user by ID
-- `PUT /users/:id` - Update user
-- `DELETE /users/:id` - Delete user
 
 ### Product Endpoints
 - `GET /products` - Get all products
 - `POST /products` - Create new product
-- `GET /products/:id` - Get product by ID
-- `PUT /products/:id` - Update product
-- `DELETE /products/:id` - Delete product
 
 ## 🤝 Contributing
 
