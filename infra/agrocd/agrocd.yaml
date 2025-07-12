@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git
+    repoURL: https://github.com/Hadyaziz05/devops-microservices.git
     targetRevision: main
-    path: k8s
+    path: infra        
   destination:
     server: https://kubernetes.default.svc
     namespace: default
