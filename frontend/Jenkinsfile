@@ -6,7 +6,7 @@ pipeline {
     }
 
     triggers {
-        pollSCM '* * * * *'
+        pollSCM 'H/5 * * * *'
     }
 
     environment {
@@ -17,18 +17,22 @@ pipeline {
 
     stages {
 
-        stage('Check for [skip ci]') {
+        stage('Check for frontend changes') {
             steps {
                 script {
-                    def commitMessage = sh(
-                        script: "git log -1 --pretty=%B",
+                    def changedFiles = sh(
+                        script: "git diff --name-only HEAD~1 HEAD",
                         returnStdout: true
                     ).trim()
 
-                    if (commitMessage.contains("[skip ci]")) {
-                        echo "Skipping build: Detected '[skip ci]' in commit message."
+                    echo "Changed files:\n${changedFiles}"
+
+                    def hasFrontendChanges = changedFiles.split('\n').any { it.startsWith('frontend/') }
+
+                    if (!hasFrontendChanges) {
+                        echo "No changes in /frontend folder. Skipping build."
                         currentBuild.result = 'SUCCESS'
-                        error("Build intentionally skipped.")
+                        sh 'exit 0'
                     }
                 }
             }
