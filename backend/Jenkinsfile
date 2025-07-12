@@ -6,7 +6,7 @@ pipeline {
     }
 
     triggers {
-        pollSCM('H/5 * * * *')
+        pollSCM('* * * * *')
     }
 
     environment {
@@ -14,6 +14,8 @@ pipeline {
         IMAGE = "hadyaziz05/backend:${TAG}"
         DOCKER_HOST = 'tcp://docker-socat:2375'
     }
+
+    stages {
 
         stage('Check for backend changes') {
             steps {
@@ -35,7 +37,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Build') {
             steps {
                 echo "Building Docker Image: ${IMAGE}"
