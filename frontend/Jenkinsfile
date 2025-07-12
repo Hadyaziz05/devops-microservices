@@ -16,6 +16,7 @@ pipeline {
     }
 
     stages {
+
         stage('Check for [skip ci]') {
             steps {
                 script {
@@ -23,7 +24,7 @@ pipeline {
                         script: "git log -1 --pretty=%B",
                         returnStdout: true
                     ).trim()
-                    
+
                     if (commitMessage.contains("[skip ci]")) {
                         echo "Skipping build: Detected '[skip ci]' in commit message."
                         currentBuild.result = 'SUCCESS'
@@ -65,28 +66,25 @@ pipeline {
 
         stage('Update YAML in Git') {
             steps {
-                echo "Updating Kubernetes YAML in Git with new image: ${IMAGE}"
+                echo "Updating frontend-deployment.yaml with new image: ${IMAGE}"
                 withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
                     sh '''
                     rm -rf repo
                     git config --global user.name "Jenkins CI"
                     git config --global user.email "jenkins@example.com"
+
                     git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
                     cd repo
 
-                    NEW_VERSION=$(kubectl get service backend-service -o=jsonpath='{.spec.selector.version}' | grep -q blue && echo green || echo blue)
-
-                    YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
-
+                    YAML_PATH=k8s/frontend-deployment.yaml
                     sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
 
                     git add "$YAML_PATH"
-                    git commit -m "[skip ci] update backend ${NEW_VERSION} image to ${TAG}" || echo "No changes"
+                    git commit -m "[skip ci] update frontend image to ${TAG}" || echo "No changes"
                     git push origin main
                     '''
                 }
             }
         }
-
     }
 }

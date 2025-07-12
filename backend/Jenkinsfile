@@ -95,23 +95,23 @@ pipeline {
 
         stage('Update YAML in Git') {
             steps {
-                echo "Updating YAML files with new deployment state..."
+                echo "Updating Kubernetes YAML in Git with new image: ${IMAGE}"
                 withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
                     sh '''
                     rm -rf repo
-                    git config --global user.name "jenkins"
-                    git config --global user.email "jenkins@ci"
+                    git config --global user.name "Jenkins CI"
+                    git config --global user.email "jenkins@example.com"
                     git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
                     cd repo
 
+                    NEW_VERSION=$(kubectl get service backend-service -o=jsonpath='{.spec.selector.version}' | grep -q blue && echo green || echo blue)
+
                     YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
+
                     sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
 
-                    # Update service selector
-                    sed -i "s|version: .*|version: ${NEW_VERSION}|" k8s/backend-service.yaml
-
-                    git add "$YAML_PATH" k8s/backend-service.yaml k8s/kustomization.yaml
-                    git commit -m "[skip ci] update backend to ${NEW_VERSION} with image ${TAG}" || echo "No changes"
+                    git add "$YAML_PATH"
+                    git commit -m "[skip ci] update backend ${NEW_VERSION} image to ${TAG}" || echo "No changes"
                     git push origin main
                     '''
                 }
