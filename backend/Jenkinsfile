@@ -4,9 +4,11 @@ pipeline {
             label 'jenkins-docker-agent'
         }
     }
+
     triggers {
-        pollSCM 'H/5 * * * *'
+        pollSCM('H/5 * * * *')
     }
+
     environment {
         TAG = "v${env.BUILD_NUMBER}"
         IMAGE = "hadyaziz05/backend:${TAG}"
@@ -14,25 +16,37 @@ pipeline {
     }
 
     stages {
+        stage('Check for [skip ci]') {
+            steps {
+                script {
+                    def commitMessage = sh(
+                        script: "git log -1 --pretty=%B",
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (commitMessage.contains("[skip ci]")) {
+                        echo "Skipping build: Detected '[skip ci]' in commit message."
+                        currentBuild.result = 'SUCCESS'
+                        error("Build intentionally skipped.")
+                    }
+                }
+            }
+        }
         stage('Build') {
             steps {
                 echo "Building Docker Image: ${IMAGE}"
-                sh '''
-                docker build -t $IMAGE backend/
-                '''
+                sh 'docker build -t $IMAGE backend/'
             }
         }
 
         stage('Test') {
             steps {
                 echo "Testing container..."
-                sh '''
-                docker run --rm $IMAGE node --version
-                '''
+                sh 'docker run --rm $IMAGE node --version'
             }
         }
 
-        stage('Push') {
+        stage('Push Image') {
             steps {
                 echo "Pushing to Docker Hub..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
@@ -44,50 +58,64 @@ pipeline {
             }
         }
 
-        stage('Deploy Blue-Green') {
-            agent {
-                label 'controller'
-            }
+        stage('Blue-Green Deploy') {
+            agent { label 'controller' }
             steps {
-                echo "Starting Blue-Green Deployment..."
+                echo "Performing Blue-Green Deployment..."
                 withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
                     script {
-                        def currentVersion = sh(script: '''
-                            kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'
-                        ''', returnStdout: true).trim()
+                        def currentVersion = sh(
+                            script: "kubectl get service backend-service -o=jsonpath='{.spec.selector.version}'",
+                            returnStdout: true
+                        ).trim()
 
                         def newVersion = currentVersion == "blue" ? "green" : "blue"
                         def newDeployment = "backend-${newVersion}"
                         def oldDeployment = "backend-${currentVersion}"
 
-                        echo "Current version: ${currentVersion}"
-                        echo "Deploying to: ${newDeployment} with image: ${IMAGE}"
+                        echo "Deploying to ${newDeployment} with image ${IMAGE}"
 
-                        //Step 1: Scale up the new deployment
-                        sh """
-                        kubectl scale deployment/${newDeployment} --replicas=2
-                        """
+                        // Deploy to new version
+                        sh "kubectl scale deployment/${newDeployment} --replicas=2"
+                        sh "kubectl set image deployment/${newDeployment} backend=${IMAGE}"
+                        sh "kubectl rollout status deployment/${newDeployment}"
 
-                        //Step 2: Update new deployment with the new image
-                        sh """
-                        kubectl set image deployment/${newDeployment} backend=${IMAGE}
-                        kubectl rollout status deployment/${newDeployment}
-                        """
+                        // Switch service to new version
+                        sh "kubectl patch service backend-service -p '{\"spec\": {\"selector\": {\"app\": \"backend\", \"version\": \"${newVersion}\"}}}'"
 
-                        //Step 3: Switch service to point to new version
-                        sh """
-                        kubectl patch service backend-service -p '{"spec": {"selector": {"app": "backend", "version": "${newVersion}"}}}'
-                        """
+                        // Scale down old version
+                        sh "kubectl scale deployment/${oldDeployment} --replicas=0"
 
-                        //Step 4: Scale down the old deployment
-                        sh """
-                        kubectl scale deployment/${oldDeployment} --replicas=0
-                        """
+                        env.NEW_VERSION = newVersion
+                        env.OLD_VERSION = currentVersion
                     }
                 }
             }
         }
 
+        stage('Update YAML in Git') {
+            steps {
+                echo "Updating YAML files with new deployment state..."
+                withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    sh '''
+                    rm -rf repo
+                    git config --global user.name "jenkins"
+                    git config --global user.email "jenkins@ci"
+                    git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
+                    cd repo
 
+                    YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
+                    sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
+
+                    # Update service selector
+                    sed -i "s|version: .*|version: ${NEW_VERSION}|" k8s/backend-service.yaml
+
+                    git add "$YAML_PATH" k8s/backend-service.yaml k8s/kustomization.yaml
+                    git commit -m "[skip ci] update backend to ${NEW_VERSION} with image ${TAG}" || echo "No changes"
+                    git push origin main
+                    '''
+                }
+            }
+        }
     }
 }

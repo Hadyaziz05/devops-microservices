@@ -16,6 +16,23 @@ pipeline {
     }
 
     stages {
+        stage('Check for [skip ci]') {
+            steps {
+                script {
+                    def commitMessage = sh(
+                        script: "git log -1 --pretty=%B",
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (commitMessage.contains("[skip ci]")) {
+                        echo "Skipping build: Detected '[skip ci]' in commit message."
+                        currentBuild.result = 'SUCCESS'
+                        error("Build intentionally skipped.")
+                    }
+                }
+            }
+        }
+
         stage('Build') {
             steps {
                 echo "Building Docker Image: ${IMAGE}"
@@ -46,16 +63,24 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            agent {
-                label 'controller'
-            }
+        stage('Update YAML in Git') {
             steps {
-                echo "Deploying to Kubernetes..."
-                withCredentials([file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')]) {
+                echo "Updating frontend-deployment.yaml with image: ${IMAGE}"
+                withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
                     sh '''
-                    kubectl set image deployment/frontend-deployment frontend=$IMAGE
-                    kubectl rollout status deployment/frontend-deployment
+                    git config user.name "jenkins"
+                    git config user.email "jenkins@ci"
+
+                    rm -rf repo
+                    git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
+                    cd repo
+
+                    # update deployment YAML
+                    sed -i "s|image: .*|image: hadyaziz05/frontend:${TAG}|" k8s/frontend-deployment.yaml
+
+                    git add k8s/frontend-deployment.yaml
+                    git commit -m "[skip ci] Update frontend image to ${TAG}" || echo "No changes"
+                    git push origin main
                     '''
                 }
             }
