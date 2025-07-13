@@ -5,9 +5,10 @@ pipeline {
         }
     }
 
-    triggers {
-        pollSCM('* * * * *')
-    }
+    // Commented out polling (you can re-enable when needed)
+    // triggers {
+    //     pollSCM('* * * * *')
+    // }
 
     environment {
         TAG = "v${env.BUILD_NUMBER}"
@@ -27,17 +28,17 @@ pipeline {
 
                     echo "Changed files:\n${changedFiles}"
 
-                    def hasBackendendChanges = changedFiles.split('\n').any { it.startsWith('frontend/') }
+                    def hasBackendChanges = changedFiles.split('\n').any { it.startsWith('backend/') }
 
-                    if (!hasBackendendChanges) {
-                        echo "No changes in /frontend folder. Skipping build."
+                    if (!hasBackendChanges) {
+                        echo "No changes in /backend folder. Skipping build."
                         currentBuild.result = 'SUCCESS'
                         sh 'exit 0'
                     }
                 }
             }
         }
-        
+
         stage('Build') {
             steps {
                 echo "Building Docker Image: ${IMAGE}"
@@ -81,15 +82,12 @@ pipeline {
 
                         echo "Deploying to ${newDeployment} with image ${IMAGE}"
 
-                        // Deploy to new version
                         sh "kubectl scale deployment/${newDeployment} --replicas=2"
                         sh "kubectl set image deployment/${newDeployment} backend=${IMAGE}"
                         sh "kubectl rollout status deployment/${newDeployment}"
 
-                        // Switch service to new version
                         sh "kubectl patch service backend-service -p '{\"spec\": {\"selector\": {\"app\": \"backend\", \"version\": \"${newVersion}\"}}}'"
 
-                        // Scale down old version
                         sh "kubectl scale deployment/${oldDeployment} --replicas=0"
 
                         env.NEW_VERSION = newVersion
