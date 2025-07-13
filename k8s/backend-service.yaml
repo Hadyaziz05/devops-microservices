@@ -5,7 +5,7 @@ metadata:
 spec:
   selector:
     app: backend
-    version: blue
+    version: green
   ports:
   - protocol: TCP
     port: 4040
