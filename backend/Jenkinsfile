@@ -5,7 +5,7 @@ pipeline {
         }
     }
 
-    // Commented out polling (you can re-enable when needed)
+    // Uncomment if you want SCM polling
     // triggers {
     //     pollSCM('* * * * *')
     // }
@@ -99,23 +99,29 @@ pipeline {
 
         stage('Update YAML in Git') {
             steps {
-                echo "Updating Kubernetes YAML in Git with new image: ${IMAGE}"
+                echo "Updating Kubernetes YAML in Git with new image and service selector..."
                 withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    sh '''
-                    rm -rf repo
-                    git config --global user.name "Jenkins CI"
-                    git config --global user.email "jenkins@example.com"
-                    git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
-                    cd repo
+                    withEnv(["NEW_VERSION=${env.NEW_VERSION}", "OLD_VERSION=${env.OLD_VERSION}"]) {
+                        sh '''
+                        rm -rf repo
+                        git config --global user.name "Jenkins CI"
+                        git config --global user.email "jenkins@example.com"
+                        git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
+                        cd repo
 
-                    YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
+                        # Update deployment YAML for new version
+                        YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
+                        sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
 
-                    sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
+                        # Update backend-service selector to match new version
+                        SERVICE_PATH=k8s/backend-service.yaml
+                        sed -i "s/version: ${OLD_VERSION}/version: ${NEW_VERSION}/" "$SERVICE_PATH"
 
-                    git add "$YAML_PATH"
-                    git commit -m "[skip ci] update backend ${NEW_VERSION} image to ${TAG}" || echo "No changes"
-                    git push origin main
-                    '''
+                        git add "$YAML_PATH" "$SERVICE_PATH"
+                        git commit -m "[skip ci] update backend ${NEW_VERSION} image to ${TAG} and service selector" || echo "No changes"
+                        git push origin main
+                        '''
+                    }
                 }
             }
         }
