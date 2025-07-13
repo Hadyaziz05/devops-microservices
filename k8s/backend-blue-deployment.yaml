@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: hadyaziz05/backend:v44
+          image: hadyaziz05/backend:v45
           ports:
             - containerPort: 4000   
           env:
