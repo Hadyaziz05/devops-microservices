@@ -1,4 +1,0 @@
-resources:
-  - ../k8s/frontend-deployment.yaml
-  - ../k8s/frontend-clusterIP.yaml
-  - ../k8s/ingress.yaml

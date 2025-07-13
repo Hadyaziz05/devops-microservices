@@ -108,8 +108,6 @@ pipeline {
                     git clone https://$GIT_USER:$GIT_PASS@github.com/Hadyaziz05/devops-microservices.git repo
                     cd repo
 
-                    NEW_VERSION=$(kubectl get service backend-service -o=jsonpath='{.spec.selector.version}' | grep -q blue && echo green || echo blue)
-
                     YAML_PATH=k8s/backend-${NEW_VERSION}-deployment.yaml
 
                     sed -i "s|image: .*|image: ${IMAGE}|" "$YAML_PATH"
