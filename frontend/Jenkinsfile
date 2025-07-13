@@ -5,9 +5,9 @@ pipeline {
         }
     }
 
-    triggers {
-        pollSCM 'H/5 * * * *'
-    }
+    // triggers {
+    //     pollSCM 'H/5 * * * *'
+    // }
 
     environment {
         TAG = "v${env.BUILD_NUMBER}"
@@ -68,10 +68,13 @@ pipeline {
             }
         }
 
-        stage('Update YAML in Git') {
+        stage('Update YAML and Deploy to K8s') {
             steps {
-                echo "Updating frontend-deployment.yaml with new image: ${IMAGE}"
-                withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                echo "Updating frontend-deployment.yaml and applying to Kubernetes"
+                withCredentials([
+                    usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS'),
+                    file(credentialsId: 'kube-config-jenkins', variable: 'KUBECONFIG')
+                ]) {
                     sh '''
                     rm -rf repo
                     git config --global user.name "Jenkins CI"
@@ -86,6 +89,9 @@ pipeline {
                     git add "$YAML_PATH"
                     git commit -m "[skip ci] update frontend image to ${TAG}" || echo "No changes"
                     git push origin main
+
+                    echo "Applying updated YAML to Kubernetes..."
+                    kubectl apply -f "$YAML_PATH"
                     '''
                 }
             }
