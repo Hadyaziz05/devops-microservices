@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signupUser } from '../api/users';
+import { useAuth } from '../contexts/AuthContext';
 
 function Signup() {
   const [name, setName] = useState('');
@@ -12,6 +13,7 @@ function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -31,8 +33,14 @@ function Signup() {
     }
     
     try {
-      await signupUser(name, email, password);
-      navigate('/products');
+      const response = await signupUser(name, email, password);
+      
+      if (response.token) {
+        login(response.token);
+        navigate('/products');
+      } else {
+        throw new Error('No authentication token received');
+      }
     } catch (err) {
       setError('Registration failed. Please try again.');
     } finally {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from '../api/users';
+import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,8 +18,14 @@ function Login() {
     setError('');
     
     try {
-      await loginUser(email, password);
-      navigate('/products');
+      const response = await loginUser(email, password);
+      
+      if (response.token) {
+        login(response.token);
+        navigate('/products');
+      } else {
+        throw new Error('No authentication token received');
+      }
     } catch (err) {
       setError('Invalid email or password. Please try again.');
     } finally {

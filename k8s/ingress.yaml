@@ -14,13 +14,20 @@ spec:
     - host: myapp.local
       http:
         paths:
-          - path: /api
+          - path: /api/user/
             pathType: Prefix
             backend:
               service:
-                name: backend-service
+                name: user-clusterip
                 port:
                   number: 4040
+          - path: /api/commerce/
+            pathType: Prefix
+            backend:
+              service:
+                name: commerce-clusterip
+                port:
+                  number: 5050
           - path: /
             pathType: Prefix
             backend:
